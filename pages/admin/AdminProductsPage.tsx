@@ -265,7 +265,7 @@ const ProductEditModal: React.FC<{
                 </div>
                 <div className="text-center">
                     <label className="block text-sm font-medium text-gray-800 mb-1">Vista Previa Principal</label>
-                    <div className="w-full h-32 neomorphic-in rounded-lg flex items-center justify-center p-1">
+                    <div className="w-full h-32 rounded-lg flex items-center justify-center">
                         {primaryImageUrl ? <img src={primaryImageUrl} alt="Preview" className="max-h-full max-w-full object-contain rounded-md" /> : <span className="text-gray-800 text-sm">Sin imagen</span>}
                     </div>
                 </div>
@@ -277,7 +277,7 @@ const ProductEditModal: React.FC<{
                     <div className="flex flex-wrap gap-2 p-2 neomorphic-in rounded-lg">
                         {imageList.map((url, index) => (
                             <div key={index} className="relative w-20 h-20 group">
-                                <img src={url} alt={`Product image ${index + 1}`} className="w-full h-full object-cover rounded-md" />
+                                <img src={url} alt={`Product image ${index + 1}`} className="w-full h-full object-contain rounded-md" />
                                 <button
                                     type="button"
                                     onClick={() => handleRemoveImage(url)}
@@ -336,7 +336,7 @@ const AdminProductCard: React.FC<{
       <img 
         src={product.images?.[0] || `https://picsum.photos/seed/p${product.id}/400/400`} 
         alt={product.name} 
-        className="w-full h-32 sm:h-40 object-cover rounded-lg mb-3 neomorphic-in p-1" 
+        className="w-full object-contain rounded-lg mb-3" 
       />
       <h3 className="font-bold text-base text-gray-800 truncate flex-grow" title={product.name}>{product.name}</h3>
       <p className="text-xs text-gray-800 mb-2">{product.category}</p>

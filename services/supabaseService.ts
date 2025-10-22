@@ -4,6 +4,8 @@
 
 
 
+
+
 import { createClient, Session, Subscription } from '@supabase/supabase-js';
 import { Product } from '../types';
 
@@ -106,10 +108,13 @@ export const uploadProductImage = async (file: File): Promise<{ publicUrl: strin
     const fileName = `${Date.now()}_${Math.random().toString(36).substring(2)}.${fileExt}`;
     const filePath = `public/${fileName}`; // Store in a 'public' folder within the bucket
 
-    // Upload the file to the 'product-images' bucket
+    // Upload the file to the 'product-images' bucket with explicit content type
     const { error: uploadError } = await supabase.storage
         .from('product-images')
-        .upload(filePath, file);
+        .upload(filePath, file, {
+            contentType: file.type, // Explicitly set the MIME type for better handling (e.g., for PNGs)
+            upsert: false,
+        });
 
     if (uploadError) {
         console.error('Error uploading image:', uploadError);

@@ -14,6 +14,8 @@ export interface Product {
   material?: string;
   tags: string[];
   hashtags?: string[];
+  // fix: Added optional badge property to support product badges.
+  badge?: string;
 }
 
 export interface CartItem extends Product {

@@ -9,6 +9,13 @@ export const CATEGORIES = [
   "Extras importantes"
 ];
 
+// fix: Export BADGE_COLORS constant to be used in ClientUI.tsx for displaying product badges.
+export const BADGE_COLORS: { [key: string]: string } = {
+  'Nuevo': 'bg-blue-500',
+  'Oferta': 'bg-red-500',
+  'Más Vendido': 'bg-yellow-500',
+};
+
 const surtilista = {
   "Para la Clínica": ["Pañales desechables R.N.", "Pañitos húmedos", "Crema antipañalitis", "Toallas", "Juegos de sábanas (x2)", "Cobilas", "Pijamas (primer día)", "Medias (escarpines)", "Mitones", "Gorritos", "1 Biberón", "Termo", "1 Babero (saca gases)", "Fajeros", "Bolso pañalera"],
   "Para Mamita": ["Toallas maternas", "Dos batas", "Pantuflas", "Lacti Nosotras", "Jabón", "Jabonera", "Sábanas", "Toalla de baño", "Salida de baño", "Almohadas"],
@@ -21,12 +28,17 @@ const surtilista = {
 let idCounter = 1;
 const generateProducts = (): Product[] => {
   const products: Product[] = [];
+  // fix: Added badges to be randomly assigned to mock products.
+  const badges = ['Nuevo', 'Oferta', 'Más Vendido'];
   for (const category in surtilista) {
     // @ts-ignore
     for (const productName of surtilista[category]) {
       const nameTags = productName.toLowerCase().replace(/[^a-z0-9\s]/gi, '').split(' ').filter(Boolean);
       const categoryTag = category.toLowerCase();
       const tags = [...new Set([categoryTag, ...nameTags])];
+
+      const hasBadge = Math.random() > 0.8; // 20% chance of having a badge
+      const badge = hasBadge ? badges[Math.floor(Math.random() * badges.length)] : undefined;
 
       products.push({
         id: idCounter++,
@@ -39,7 +51,8 @@ const generateProducts = (): Product[] => {
         price: parseFloat((Math.random() * (80 - 5) + 5).toFixed(2)),
         stock: Math.floor(Math.random() * 50) + 10,
         status: 'Active',
-        images: [`https://picsum.photos/seed/p${idCounter}/400/400`]
+        images: [`https://picsum.photos/seed/p${idCounter}/400/400`],
+        badge: badge,
       });
     }
   }

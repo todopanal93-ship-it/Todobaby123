@@ -1,9 +1,9 @@
 import React, { useState, useMemo, useRef, useEffect, useCallback } from 'react';
 import { NavLink, Outlet, Link, useSearchParams, useNavigate } from 'react-router-dom';
 import { Product, CartItem, StoreSettings, ClientUIProps } from '../types';
-import { CATEGORIES } from '../constants';
+import { CATEGORIES, BADGE_COLORS } from '../constants';
 import * as gemini from '../services/geminiService';
-import { IconCart, IconPlus, IconMinus, IconTrash, IconChevronDown, IconX, IconChatBubble, IconSend, IconQueueList, IconSquares2x2, IconTableCells, IconPhoto, IconMicrophone, IconSpeakerWave, IconSparkles, IconStopCircle, IconSearch, IconFilter, IconMenu } from './Icons';
+import { IconCart, IconPlus, IconMinus, IconTrash, IconChevronDown, IconX, IconChatBubble, IconSend, IconQueueList, IconSquares2x2, IconViewColumn, IconPhoto, IconMicrophone, IconSpeakerWave, IconSparkles, IconStopCircle, IconSearch, IconFilter, IconMenu, IconPhone, IconPhoneSlash } from './Icons';
 import { GoogleGenAI, LiveSession, LiveServerMessage, Modality, Blob as GenaiBlob } from "@google/genai";
 
 
@@ -201,7 +201,6 @@ async function decodeAudioData(
   data: Uint8Array, ctx: AudioContext, sampleRate: number, numChannels: number,
 ): Promise<AudioBuffer> {
   const dataInt16 = new Int16Array(data.buffer);
-  // FIX: Corrected typo from dataInt116 to dataInt16.
   const frameCount = dataInt16.length / numChannels;
   const buffer = ctx.createBuffer(numChannels, frameCount, sampleRate);
   for (let channel = 0; channel < numChannels; channel++) {
@@ -253,9 +252,11 @@ const Chatbot: React.FC<{ products: Product[], settings: StoreSettings }> = ({ p
   const [isExpertMode, setIsExpertMode] = useState(false);
   const [imagePayload, setImagePayload] = useState<{b64: string, mime: string, url: string} | null>(null);
 
-  // Live API State
-  const [isListening, setIsListening] = useState(false);
+  // Voice Session State
+  const [voiceSessionMode, setVoiceSessionMode] = useState<'off' | 'message' | 'call'>('off');
   const [liveTranscription, setLiveTranscription] = useState('');
+
+  // Refs for Live API resources
   const sessionPromiseRef = useRef<Promise<LiveSession> | null>(null);
   const audioContextRef = useRef<AudioContext | null>(null);
   const scriptProcessorRef = useRef<ScriptProcessorNode | null>(null);
@@ -307,6 +308,7 @@ const Chatbot: React.FC<{ products: Product[], settings: StoreSettings }> = ({ p
         setImagePayload({ b64, mime: file.type, url: URL.createObjectURL(file) });
       }
     };
+    // fix: Corrected typo from readDataURL to readAsDataURL.
     reader.readAsDataURL(file);
     e.target.value = ''; // Allow re-uploading the same file
   };
@@ -327,7 +329,8 @@ const Chatbot: React.FC<{ products: Product[], settings: StoreSettings }> = ({ p
     }
   };
   
-  const stopListening = useCallback(() => {
+  // --- Voice Session Logic ---
+  const stopVoiceSession = useCallback(() => {
     if (sessionPromiseRef.current) {
       sessionPromiseRef.current.then(session => session.close());
       sessionPromiseRef.current = null;
@@ -344,26 +347,16 @@ const Chatbot: React.FC<{ products: Product[], settings: StoreSettings }> = ({ p
       audioContextRef.current.close();
       audioContextRef.current = null;
     }
-    setIsListening(false);
+    setVoiceSessionMode('off');
     setLiveTranscription('');
   }, []);
   
-  const startListening = async () => {
-      if (isListening) {
-          stopListening();
-          return;
-      }
-      setIsListening(true);
+  const startVoiceSession = async () => {
       const ai = gemini.getAiInstance();
-      if (!ai) {
-          setIsListening(false);
-          return;
-      }
+      if (!ai) return;
 
-      // FIX: Cast window to `any` to support `webkitAudioContext` for older browsers without TypeScript errors.
       const inputAudioContext = new ((window as any).AudioContext || (window as any).webkitAudioContext)({ sampleRate: 16000 });
       audioContextRef.current = inputAudioContext;
-      // FIX: Cast window to `any` to support `webkitAudioContext` for older browsers without TypeScript errors.
       const outputAudioContext = new ((window as any).AudioContext || (window as any).webkitAudioContext)({ sampleRate: 24000 });
       let nextStartTime = 0;
       let currentInputTranscription = '';
@@ -423,7 +416,7 @@ const Chatbot: React.FC<{ products: Product[], settings: StoreSettings }> = ({ p
                         setLiveTranscription('');
                       }
                   },
-                  onerror: (e: ErrorEvent) => stopListening(),
+                  onerror: (e: ErrorEvent) => stopVoiceSession(),
                   onclose: (e: CloseEvent) => {
                     stream.getTracks().forEach(track => track.stop());
                   },
@@ -436,16 +429,36 @@ const Chatbot: React.FC<{ products: Product[], settings: StoreSettings }> = ({ p
           });
       } catch (err) {
           console.error("Error getting user media", err);
-          setIsListening(false);
+          stopVoiceSession();
       }
+  };
+
+  const handleToggleVoiceMessage = () => {
+    if (voiceSessionMode === 'message') {
+      stopVoiceSession();
+    } else if (voiceSessionMode === 'off') {
+      setVoiceSessionMode('message');
+      startVoiceSession();
+    }
+    // If call is active, do nothing.
+  };
+
+  const handleToggleCall = () => {
+    if (voiceSessionMode === 'call') {
+      stopVoiceSession();
+    } else if (voiceSessionMode === 'off') {
+      setVoiceSessionMode('call');
+      startVoiceSession();
+    }
+     // If message is active, do nothing.
   };
   
   useEffect(() => {
     // Cleanup on unmount
     return () => {
-        stopListening();
+        stopVoiceSession();
     };
-  }, [stopListening]);
+  }, [stopVoiceSession]);
 
 
   return (
@@ -463,7 +476,12 @@ const Chatbot: React.FC<{ products: Product[], settings: StoreSettings }> = ({ p
                 <h3 className="font-bold text-gray-800 font-arista">Laudith</h3>
                 <p className="text-xs text-gray-800">Asistente de {settings.storeName}</p>
             </div>
-            <button onClick={() => { setIsOpen(false); stopListening(); }} className="ml-auto"><IconX className="w-6 h-6 text-gray-800"/></button>
+            <div className="ml-auto flex items-center gap-2">
+                 <button onClick={handleToggleCall} className="p-2 text-gray-700 hover:text-gray-900 rounded-full transition-colors disabled:opacity-50" aria-label={voiceSessionMode === 'call' ? 'Finalizar llamada' : 'Iniciar llamada de voz'} disabled={voiceSessionMode === 'message'}>
+                    {voiceSessionMode === 'call' ? <IconPhoneSlash className="w-6 h-6 text-red-500"/> : <IconPhone className="w-6 h-6"/>}
+                </button>
+                <button onClick={() => { setIsOpen(false); stopVoiceSession(); }}><IconX className="w-6 h-6 text-gray-800"/></button>
+            </div>
         </div>
         <div className="flex-grow p-4 overflow-y-auto">
             {messages.map((msg, index) => (
@@ -487,7 +505,7 @@ const Chatbot: React.FC<{ products: Product[], settings: StoreSettings }> = ({ p
                   </div>
               </div>
             )}
-             {isListening && liveTranscription && (
+             {(voiceSessionMode === 'message' || voiceSessionMode === 'call') && liveTranscription && (
                 <div className="flex justify-end mb-3">
                     <div className="max-w-[85%] p-3 rounded-2xl shadow-md bg-[#E7FFDB] text-gray-500 rounded-br-none italic">
                         <p className="text-sm">{liveTranscription}...</p>
@@ -496,49 +514,69 @@ const Chatbot: React.FC<{ products: Product[], settings: StoreSettings }> = ({ p
             )}
             <div ref={messagesEndRef} />
         </div>
-        <div className="p-4 border-t border-white/20 flex-shrink-0">
-            {imagePayload && (
-                <div className="relative mb-2 w-20 h-20">
-                    <img src={imagePayload.url} alt="preview" className="rounded-lg w-full h-full object-cover"/>
-                    <button onClick={() => setImagePayload(null)} className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-0.5"><IconX className="w-4 h-4"/></button>
-                </div>
-            )}
-            <form onSubmit={handleSendMessage} className="flex gap-2 items-center">
-                <input type="file" ref={fileInputRef} onChange={handleImageSelect} accept="image/*" className="hidden" />
-                <button type="button" onClick={() => fileInputRef.current?.click()} className="p-3 text-gray-700 hover:text-gray-900 transition-colors"><IconPhoto className="w-6 h-6"/></button>
-                <button type="button" onClick={() => setIsExpertMode(!isExpertMode)} className="p-3 text-gray-700 hover:text-[#D4AF37] transition-colors"><IconSparkles isActive={isExpertMode} className="w-6 h-6"/></button>
-                
-                <input 
-                    type="text"
-                    value={isListening ? '' : userInput}
-                    onChange={(e) => setUserInput(e.target.value)}
-                    placeholder={isListening ? "Escuchando..." : "Escribe un mensaje..."}
-                    className="w-full p-3 bg-white/50 rounded-full focus:outline-none focus:ring-2 focus:ring-white/80 placeholder-gray-600 text-gray-800"
-                    disabled={isListening}
-                />
 
-                <button type="button" onClick={startListening} className={`p-3 rounded-full transition-colors ${isListening ? 'text-red-500' : 'text-gray-700'}`}>
-                    {isListening ? <IconStopCircle className="w-6 h-6"/> : <IconMicrophone className="w-6 h-6"/>}
-                </button>
-                <button type="submit" className="bg-[#00E0FF] text-gray-800 p-3 rounded-full disabled:bg-gray-400 disabled:opacity-50 transition-colors" disabled={isLoading || isListening || (!userInput.trim() && !imagePayload)}>
-                    <IconSend className="w-6 h-6"/>
-                </button>
-            </form>
-        </div>
+        {voiceSessionMode === 'call' ? (
+            <div className="p-4 border-t border-white/20 flex-shrink-0 text-center flex flex-col items-center justify-center">
+                <p className="font-semibold text-gray-800">Llamada de voz activa...</p>
+                <div className="typing-indicator my-2 justify-center"><span></span><span></span><span></span></div>
+            </div>
+        ) : (
+            <div className="p-4 border-t border-white/20 flex-shrink-0">
+                {imagePayload && (
+                    <div className="relative mb-2 w-20 h-20">
+                        <img src={imagePayload.url} alt="preview" className="rounded-lg w-full h-full object-cover"/>
+                        <button onClick={() => setImagePayload(null)} className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-0.5"><IconX className="w-4 h-4"/></button>
+                    </div>
+                )}
+                <form onSubmit={handleSendMessage} className="flex gap-2 items-center">
+                    <input type="file" ref={fileInputRef} onChange={handleImageSelect} accept="image/*" className="hidden" />
+                    <button type="button" onClick={() => fileInputRef.current?.click()} className="p-3 text-gray-700 hover:text-gray-900 transition-colors"><IconPhoto className="w-6 h-6"/></button>
+                    <button type="button" onClick={() => setIsExpertMode(!isExpertMode)} className="p-3 text-gray-700 hover:text-[#D4AF37] transition-colors"><IconSparkles isActive={isExpertMode} className="w-6 h-6"/></button>
+                    
+                    <input 
+                        type="text"
+                        value={voiceSessionMode === 'message' ? '' : userInput}
+                        onChange={(e) => setUserInput(e.target.value)}
+                        placeholder={voiceSessionMode === 'message' ? "Escuchando..." : "Escribe un mensaje..."}
+                        className="w-full p-3 bg-white/50 rounded-full focus:outline-none focus:ring-2 focus:ring-white/80 placeholder-gray-600 text-gray-800"
+                        disabled={voiceSessionMode === 'message'}
+                    />
+
+                    <button type="button" onClick={handleToggleVoiceMessage} disabled={voiceSessionMode === 'call'} className={`p-3 rounded-full transition-colors ${voiceSessionMode === 'message' ? 'text-red-500' : 'text-gray-700'} disabled:opacity-50`}>
+                        {voiceSessionMode === 'message' ? <IconStopCircle className="w-6 h-6"/> : <IconMicrophone className="w-6 h-6"/>}
+                    </button>
+                    <button type="submit" className="bg-[#00E0FF] text-gray-800 p-3 rounded-full disabled:bg-gray-400 disabled:opacity-50 transition-colors" disabled={isLoading || voiceSessionMode !== 'off' || (!userInput.trim() && !imagePayload)}>
+                        <IconSend className="w-6 h-6"/>
+                    </button>
+                </form>
+            </div>
+        )}
       </div>
     </>
   );
 };
 
 
-type ViewMode = 'list' | 'grid-2';
+type ViewMode = 'list' | 'grid-2' | 'grid-1';
 
 const ProductCard: React.FC<{ product: Product; onAddToCart: () => void; viewMode: ViewMode; }> = ({ product, onAddToCart, viewMode }) => {
+    
+    const Badge = () => {
+        if (!product.badge) return null;
+        const badgeColor = BADGE_COLORS[product.badge] || 'bg-gray-500';
+        return (
+            <div className={`absolute top-2 right-2 text-white text-xs font-bold px-2 py-1 rounded-full z-10 ${badgeColor}`}>
+                {product.badge}
+            </div>
+        )
+    }
+
     if (viewMode === 'list') {
         return (
-            <div className="neomorphic-out group flex gap-4 w-full p-3 items-center">
+            <div className="neomorphic-out group flex gap-4 w-full p-3 items-center relative">
+                <Badge/>
                 <Link to={`/product/${product.id}`} className="w-24 h-24 sm:w-32 sm:h-32 flex-shrink-0 block">
-                    <img className="w-full h-full object-cover rounded-md group-hover:scale-105 transition-transform duration-300" src={product.images[0]} alt={product.name} />
+                    <img className="w-full h-full object-contain rounded-md group-hover:scale-105 transition-transform duration-300" src={product.images[0]} alt={product.name} />
                 </Link>
                 <div className="flex flex-col flex-grow self-stretch">
                     <Link to={`/product/${product.id}`} className="block flex-grow">
@@ -558,11 +596,12 @@ const ProductCard: React.FC<{ product: Product; onAddToCart: () => void; viewMod
         );
     }
     
-    // Grid view (compacted)
+    // Grid views
     return (
-        <div className="neomorphic-out group flex flex-col h-full">
+        <div className="neomorphic-out group flex flex-col h-full relative">
+            <Badge/>
             <Link to={`/product/${product.id}`} className="block">
-                <img className="w-full h-40 object-cover group-hover:scale-105 transition-transform duration-300 rounded-t-xl" src={product.images[0]} alt={product.name} />
+                <img className="w-full object-contain group-hover:scale-105 transition-transform duration-300 rounded-t-xl" src={product.images[0]} alt={product.name} />
                 <div className="p-3 flex-grow">
                     <p className="text-xs text-gray-800">{product.category}</p>
                     <h3 className="font-bold text-base text-gray-800 font-arista leading-tight">{product.name}</h3>
@@ -746,7 +785,7 @@ const FloatingCart: React.FC<ClientUIProps> = (props) => {
             <div className="flex-grow overflow-y-auto pr-2 -mr-2">
               {cart.map(item => (
                 <div key={item.id} className="flex items-center gap-4 mb-4 bg-transparent p-2 rounded-lg">
-                  <img src={item.images[0]} alt={item.name} className="w-16 h-16 rounded-md object-cover neomorphic-in p-1"/>
+                  <img src={item.images[0]} alt={item.name} className="w-16 h-16 rounded-md object-contain"/>
                   <div className="flex-grow">
                     <p className="font-semibold text-gray-800">{item.name}</p>
                     <p className="text-sm text-[#00E0FF] font-bold">${item.price.toFixed(2)}</p>
@@ -830,6 +869,8 @@ export const HomePage: React.FC<Omit<ClientUIProps, 'cart' | 'removeFromCart' | 
     switch (viewMode) {
       case 'list':
         return 'flex flex-col gap-4';
+      case 'grid-1':
+        return 'grid grid-cols-1 gap-4';
       case 'grid-2':
       default:
         return 'grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4';
@@ -870,11 +911,14 @@ export const HomePage: React.FC<Omit<ClientUIProps, 'cart' | 'removeFromCart' | 
                 <IconFilter className="w-5 h-5"/>
                 <span className="text-sm font-semibold">Filtros</span>
             </button>
-            <div className="hidden sm:flex items-center gap-2 p-1 rounded-lg neomorphic-out">
-                <button onClick={() => setViewMode('list')} className={buttonClass('list')} aria-label="List view">
+            <div className="flex items-center gap-2 p-1 rounded-lg neomorphic-out">
+                <button onClick={() => setViewMode('list')} className={buttonClass('list')} aria-label="Vista de lista">
                     <IconQueueList className="w-6 h-6" />
                 </button>
-                <button onClick={() => setViewMode('grid-2')} className={buttonClass('grid-2')} aria-label="Grid view">
+                <button onClick={() => setViewMode('grid-1')} className={buttonClass('grid-1')} aria-label="Vista de una columna">
+                    <IconViewColumn className="w-6 h-6" />
+                </button>
+                <button onClick={() => setViewMode('grid-2')} className={buttonClass('grid-2')} aria-label="Vista de dos columnas">
                     <IconSquares2x2 className="w-6 h-6" />
                 </button>
             </div>
