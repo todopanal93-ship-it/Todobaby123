@@ -1,5 +1,3 @@
-
-
 import React, { useState, useCallback, useEffect } from 'react';
 import { HashRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { ClientLayout, HomePage } from './components/ClientUI';
@@ -28,6 +26,12 @@ const useStickyState = <T,>(defaultValue: T, key: string): [T, React.Dispatch<Re
   return [value, setValue];
 };
 
+const ProtectedRoute: React.FC<{ isAuthenticated: boolean; children: React.ReactNode }> = ({ isAuthenticated, children }) => {
+  if (!isAuthenticated) {
+    return <Navigate to="/admin/login" replace />;
+  }
+  return <>{children}</>;
+};
 
 const App: React.FC = () => {
   const [products, setProducts] = useState<Product[]>([]);
@@ -49,6 +53,8 @@ const App: React.FC = () => {
     
     checkInitialSession();
 
+    // FIX: Correctly handle the subscription object returned by onAuthStateChange.
+    // The service function already extracts the subscription, so we don't need to destructure `data`.
     const subscription = db.onAuthStateChange((_event, session) => {
         setIsAdminAuthenticated(!!session);
     });
@@ -162,39 +168,42 @@ const App: React.FC = () => {
           <Route path="/product/:productId" element={<ProductDetailPage products={products} addToCart={addToCart} />} />
         </Route>
         
-        {/* Admin Login Route */}
+        {/* Admin Public Login Route */}
         <Route 
-          path="/admin"
+          path="/admin/login"
           element={
             isAdminAuthenticated ? <Navigate to="/admin/dashboard" replace /> : <AdminLoginPage login={login} />
           }
         />
 
-        {/* Protected Admin Section with Nested Routes */}
+        {/* Protected Admin Section */}
         <Route 
-          path="/admin"
+          path="/admin/*"
           element={
-            isAdminAuthenticated ? <AdminLayout logout={logout} /> : <Navigate to="/admin" replace />
+            <ProtectedRoute isAuthenticated={isAdminAuthenticated}>
+              <AdminLayout logout={logout}>
+                <Routes>
+                  <Route path="dashboard" element={<AdminDashboardPage products={products} />} />
+                  <Route path="products" element={
+                    <AdminProductsPage
+                      products={products}
+                      handleProductAdd={handleProductAdd}
+                      handleProductUpdate={handleProductUpdate}
+                      handleProductDelete={handleProductDelete}
+                    />
+                  } />
+                  <Route path="settings" element={
+                    <AdminSettingsPage
+                      settings={settings}
+                      setSettings={setSettings}
+                    />
+                  } />
+                   <Route index path="*" element={<Navigate to="dashboard" replace />} />
+                </Routes>
+              </AdminLayout>
+            </ProtectedRoute>
           }
-        >
-          <Route path="dashboard" element={<AdminDashboardPage />} />
-          <Route path="products" element={
-            <AdminProductsPage
-              products={products}
-              handleProductAdd={handleProductAdd}
-              handleProductUpdate={handleProductUpdate}
-              handleProductDelete={handleProductDelete}
-            />
-          } />
-          <Route path="settings" element={
-            <AdminSettingsPage
-              settings={settings}
-              setSettings={setSettings}
-            />
-          } />
-          {/* Redirect from "/admin/" to "/admin/dashboard" */}
-          <Route index element={<Navigate to="dashboard" replace />} />
-        </Route>
+        />
 
         <Route path="*" element={<Navigate to="/" />} />
       </Routes>

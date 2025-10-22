@@ -1,5 +1,3 @@
-
-
 import React, { useState } from 'react';
 import { NavLink, Outlet } from 'react-router-dom';
 
@@ -95,12 +93,12 @@ const AdminSidebar: React.FC<{ logout: () => Promise<void>; }> = ({ logout }) =>
     );
 }
 
-export const AdminLayout: React.FC<{ logout: () => Promise<void>; }> = ({ logout }) => {
+export const AdminLayout: React.FC<{ logout: () => Promise<void>; children: React.ReactNode; }> = ({ logout, children }) => {
   return (
     <div className="flex h-screen bg-transparent">
       <AdminSidebar logout={logout} />
       <main className="flex-1 p-8 overflow-y-auto">
-        <Outlet />
+        {children}
       </main>
     </div>
   );
