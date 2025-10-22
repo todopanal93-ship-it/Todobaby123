@@ -7,10 +7,18 @@ import { IconCart, IconPlus, IconMinus, IconTrash, IconChevronDown, IconX, IconC
 import { GoogleGenAI, LiveSession, LiveServerMessage, Modality, Blob as GenaiBlob } from "@google/genai";
 
 
-const SearchBar: React.FC<{ onSearch: () => void, className?: string }> = ({ onSearch, className }) => {
+const SearchBar: React.FC<{ onSearch: () => void, className?: string, autoFocus?: boolean }> = ({ onSearch, className, autoFocus }) => {
     const [searchParams, setSearchParams] = useSearchParams();
     const [query, setQuery] = useState(searchParams.get('q') || '');
     const navigate = useNavigate();
+    const inputRef = useRef<HTMLInputElement>(null);
+
+    useEffect(() => {
+        if (autoFocus) {
+            // Delay focus slightly to ensure the element is visible and transitions are complete
+            setTimeout(() => inputRef.current?.focus(), 100);
+        }
+    }, [autoFocus]);
 
     const handleSearch = (e: React.FormEvent) => {
         e.preventDefault();
@@ -33,6 +41,7 @@ const SearchBar: React.FC<{ onSearch: () => void, className?: string }> = ({ onS
     return (
         <form onSubmit={handleSearch} className={`relative ${className}`}>
             <input
+                ref={inputRef}
                 type="search"
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
@@ -49,10 +58,13 @@ const SearchBar: React.FC<{ onSearch: () => void, className?: string }> = ({ onS
 
 const Header: React.FC<{ settings: StoreSettings }> = ({ settings }) => {
     const [isMenuOpen, setIsMenuOpen] = useState(false);
+    const [isSearchOpen, setIsSearchOpen] = useState(false);
+
     const closeMenu = () => setIsMenuOpen(false);
+    const closeSearch = () => setIsSearchOpen(false);
 
     useEffect(() => {
-        if (isMenuOpen) {
+        if (isMenuOpen || isSearchOpen) {
             document.body.style.overflow = 'hidden';
         } else {
             document.body.style.overflow = 'auto';
@@ -60,7 +72,7 @@ const Header: React.FC<{ settings: StoreSettings }> = ({ settings }) => {
         return () => {
             document.body.style.overflow = 'auto';
         };
-    }, [isMenuOpen]);
+    }, [isMenuOpen, isSearchOpen]);
     
     const SideMenuContent = () => (
         <div className="p-4 flex flex-col h-full">
@@ -71,7 +83,6 @@ const Header: React.FC<{ settings: StoreSettings }> = ({ settings }) => {
                 </button>
             </div>
             <nav className="flex flex-col gap-4">
-                <SearchBar onSearch={closeMenu} />
                 <NavLink to="/" onClick={closeMenu} className={({isActive}) => `font-semibold p-3 rounded-lg text-left ${isActive ? 'bg-[#9AD5FA] text-gray-800' : 'text-gray-800 hover:bg-white/50'}`}>Inicio</NavLink>
                 <NavLink to="/about" onClick={closeMenu} className={({isActive}) => `font-semibold p-3 rounded-lg text-left ${isActive ? 'bg-[#9AD5FA] text-gray-800' : 'text-gray-800 hover:bg-white/50'}`}>Quiénes Somos</NavLink>
                 <NavLink to="/contact" onClick={closeMenu} className={({isActive}) => `font-semibold p-3 rounded-lg text-left ${isActive ? 'bg-[#9AD5FA] text-gray-800' : 'text-gray-800 hover:bg-white/50'}`}>Contáctanos</NavLink>
@@ -83,7 +94,7 @@ const Header: React.FC<{ settings: StoreSettings }> = ({ settings }) => {
         <>
             <header className="p-4 bg-[#e6e9ef]/80 backdrop-blur-lg sticky top-0 z-20">
                 <div className="container mx-auto flex justify-between items-center">
-                    <NavLink to="/" onClick={closeMenu}>
+                    <NavLink to="/" onClick={() => { closeMenu(); closeSearch(); }}>
                         <img src={settings.logoUrl} alt={`${settings.storeName} Logo`} className="h-12 w-auto object-contain" />
                     </NavLink>
                     
@@ -95,14 +106,29 @@ const Header: React.FC<{ settings: StoreSettings }> = ({ settings }) => {
                         <NavLink to="/contact" className={({isActive}) => `font-semibold transition-colors hover:text-[#FF5DCD] ${isActive ? 'text-[#FF5DCD]' : 'text-gray-800'}`}>Contáctanos</NavLink>
                     </nav>
 
-                    {/* Mobile Menu Button */}
-                    <div className="md:hidden">
+                    {/* Mobile Menu Buttons */}
+                    <div className="md:hidden flex items-center gap-4">
+                        <button onClick={() => setIsSearchOpen(true)} aria-label="Abrir búsqueda">
+                           <IconSearch className="w-6 h-6 text-gray-800" />
+                        </button>
                         <button onClick={() => setIsMenuOpen(true)} aria-label="Abrir menú">
-                            <IconMenu className="w-7 h-7" />
+                            <IconMenu className="w-7 h-7 text-gray-800" />
                         </button>
                     </div>
                 </div>
             </header>
+            
+            {/* Mobile Search Overlay */}
+            <div
+                className={`fixed inset-0 bg-black/50 z-40 transition-opacity duration-300 md:hidden ${isSearchOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}
+                onClick={closeSearch}
+                aria-hidden="true"
+            />
+            <div className={`fixed top-0 left-0 w-full z-50 transform transition-transform duration-300 md:hidden ${isSearchOpen ? 'translate-y-0' : '-translate-y-full'}`}>
+                <div className="p-4 bg-[#e6e9ef]/90 backdrop-blur-lg">
+                    <SearchBar onSearch={closeSearch} autoFocus={isSearchOpen} />
+                </div>
+            </div>
             
             {/* Mobile Side Menu Overlay */}
             <div
@@ -112,11 +138,7 @@ const Header: React.FC<{ settings: StoreSettings }> = ({ settings }) => {
             />
             
             {/* Mobile Side Menu Panel */}
-            <aside className={`
-                fixed top-0 right-0 h-full w-4/5 max-w-xs z-40
-                transform transition-transform duration-300 ease-in-out md:hidden
-                ${isMenuOpen ? 'translate-x-0' : 'translate-x-full'}
-            `}>
+            <aside className={`fixed top-0 right-0 h-full w-4/5 max-w-xs z-40 transform transition-transform duration-300 ease-in-out md:hidden ${isMenuOpen ? 'translate-x-0' : 'translate-x-full'}`}>
                  <div className="h-full w-full glassmorphic bg-[#e6e9ef]/90">
                     <SideMenuContent />
                  </div>
