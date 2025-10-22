@@ -24,6 +24,10 @@ const generateProducts = (): Product[] => {
   for (const category in surtilista) {
     // @ts-ignore
     for (const productName of surtilista[category]) {
+      const nameTags = productName.toLowerCase().replace(/[^a-z0-9\s]/gi, '').split(' ').filter(Boolean);
+      const categoryTag = category.toLowerCase();
+      const tags = [...new Set([categoryTag, ...nameTags])];
+
       products.push({
         id: idCounter++,
         name: productName,
@@ -31,7 +35,7 @@ const generateProducts = (): Product[] => {
         category: category,
         colors: ["Varios"],
         sizes: ["N/A"],
-        tags: [category.toLowerCase().replace(/\s/g, '-')],
+        tags: tags,
         price: parseFloat((Math.random() * (80 - 5) + 5).toFixed(2)),
         stock: Math.floor(Math.random() * 50) + 10,
         status: 'Active',

@@ -12,7 +12,7 @@
     <style>
       body {
         font-family: 'Poppins', sans-serif;
-        background: linear-gradient(135deg, #f0f2f5, #e6e9ef); /* Subtle light gradient for both styles */
+        background: #e6e9ef; /* Solid light gray for pure Neumorphism */
       }
       .font-baby-dollar {
         /* Placeholder for a custom font, using a playful script as a fallback */
@@ -22,12 +22,6 @@
         /* Placeholder for Arista, using a clean sans-serif */
         font-family: 'Poppins', sans-serif;
         font-weight: 600;
-      }
-      .glassmorphic {
-        background: rgba(255, 255, 255, 0.4); /* Frosted glass effect */
-        backdrop-filter: blur(12px);
-        -webkit-backdrop-filter: blur(12px);
-        border: 1px solid rgba(255, 255, 255, 0.2);
       }
       .neomorphic-out {
         border-radius: 20px;
@@ -44,6 +38,26 @@
         background: #e6e9ef;
         box-shadow: inset 8px 8px 16px #c5c8ce, inset -8px -8px 16px #ffffff;
       }
+      .glassmorphic {
+        background: rgba(255, 255, 255, 0.25);
+        backdrop-filter: blur(10px);
+        -webkit-backdrop-filter: blur(10px);
+        border: 1px solid rgba(255, 255, 255, 0.18);
+      }
+       .typing-indicator span {
+          height: 8px;
+          width: 8px;
+          background-color: #9E9E9E;
+          border-radius: 50%;
+          display: inline-block;
+          animation: bounce 1.4s infinite ease-in-out both;
+        }
+        .typing-indicator span:nth-of-type(1) { animation-delay: -0.32s; }
+        .typing-indicator span:nth-of-type(2) { animation-delay: -0.16s; }
+        @keyframes bounce {
+          0%, 80%, 100% { transform: scale(0); }
+          40% { transform: scale(1.0); }
+        }
     </style>
   <script type="importmap">
 {

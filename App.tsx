@@ -15,14 +15,25 @@ import * as db from './services/supabaseService';
 // Simple in-memory storage for state persistence across reloads
 const useStickyState = <T,>(defaultValue: T, key: string): [T, React.Dispatch<React.SetStateAction<T>>] => {
   const [value, setValue] = useState<T>(() => {
-    const stickyValue = window.localStorage.getItem(key);
-    return stickyValue !== null
-      ? JSON.parse(stickyValue)
-      : defaultValue;
+    try {
+      const stickyValue = window.localStorage.getItem(key);
+      return stickyValue !== null
+        ? JSON.parse(stickyValue)
+        : defaultValue;
+    } catch (error) {
+      console.error(`Error reading from localStorage for key "${key}":`, error);
+      return defaultValue;
+    }
   });
+
   useEffect(() => {
-    window.localStorage.setItem(key, JSON.stringify(value));
+    try {
+      window.localStorage.setItem(key, JSON.stringify(value));
+    } catch (error) {
+      console.error(`Error writing to localStorage for key "${key}":`, error);
+    }
   }, [key, value]);
+
   return [value, setValue];
 };
 
@@ -198,7 +209,7 @@ const App: React.FC = () => {
                       setSettings={setSettings}
                     />
                   } />
-                   <Route index path="*" element={<Navigate to="dashboard" replace />} />
+                   <Route path="*" element={<Navigate to="dashboard" replace />} />
                 </Routes>
               </AdminLayout>
             </ProtectedRoute>

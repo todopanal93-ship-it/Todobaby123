@@ -62,7 +62,7 @@ export const AdminSettingsPage: React.FC<AdminSettingsPageProps> = ({ settings, 
                         </div>
                     )
                 })}
-                <button type="submit" disabled={isSaving} className="px-6 py-2 bg-[#00E0FF] text-white font-bold rounded-lg hover:bg-[#9AD5FA] neomorphic-out neomorphic-button disabled:bg-gray-400">
+                <button type="submit" disabled={isSaving} className="px-6 py-2 bg-[#00E0FF] text-gray-800 font-bold rounded-lg hover:bg-[#9AD5FA] neomorphic-out neomorphic-button disabled:bg-gray-400">
                     {isSaving ? 'Guardando...' : 'Guardar Configuración'}
                 </button>
             </form>

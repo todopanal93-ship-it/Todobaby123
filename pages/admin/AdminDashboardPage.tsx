@@ -9,14 +9,14 @@ type AdminDashboardPageProps = {
 const StatCard: React.FC<{ title: string; value: string | number; color: string }> = ({ title, value, color }) => (
     <div className="p-6 neomorphic-out text-center">
         <p className="text-4xl font-bold" style={{ color }}>{value}</p>
-        <h3 className="text-lg text-gray-600 mt-2 font-semibold">{title}</h3>
+        <h3 className="text-lg text-gray-800 mt-2 font-semibold">{title}</h3>
     </div>
 );
 
 const NavCard: React.FC<{ to: string; title: string; description: string }> = ({ to, title, description }) => (
     <NavLink to={to} className="block p-6 neomorphic-out hover:shadow-inner transition-shadow duration-200">
         <h3 className="text-xl font-bold text-[#FF5DCD] font-arista">{title}</h3>
-        <p className="text-gray-600 mt-2">{description}</p>
+        <p className="text-gray-800 mt-2">{description}</p>
     </NavLink>
 );
 

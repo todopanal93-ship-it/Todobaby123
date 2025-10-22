@@ -1,5 +1,9 @@
 
 
+
+
+
+
 import { createClient, Session, Subscription } from '@supabase/supabase-js';
 import { Product } from '../types';
 
@@ -31,8 +35,10 @@ export const getSession = async (): Promise<Session | null> => {
 };
 
 export const onAuthStateChange = (callback: (event: string, session: Session | null) => void): Subscription | undefined => {
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(callback);
-    return subscription;
+    const { data } = supabase.auth.onAuthStateChange(callback);
+    // Use optional chaining to safely access the subscription.
+    // This prevents a crash if `data` is null or undefined.
+    return data?.subscription;
 };
 
 
@@ -91,4 +97,35 @@ export const deleteProduct = async (productId: number): Promise<{ error: any | n
         console.error('Error deleting product:', error);
     }
     return { error };
+};
+
+// --- Storage Functions ---
+export const uploadProductImage = async (file: File): Promise<{ publicUrl: string | null; error: any | null; }> => {
+    // Generate a unique file name to avoid collisions
+    const fileExt = file.name.split('.').pop();
+    const fileName = `${Date.now()}_${Math.random().toString(36).substring(2)}.${fileExt}`;
+    const filePath = `public/${fileName}`; // Store in a 'public' folder within the bucket
+
+    // Upload the file to the 'product-images' bucket
+    const { error: uploadError } = await supabase.storage
+        .from('product-images')
+        .upload(filePath, file);
+
+    if (uploadError) {
+        console.error('Error uploading image:', uploadError);
+        return { publicUrl: null, error: uploadError };
+    }
+
+    // Get the public URL for the uploaded file
+    const { data } = supabase.storage
+        .from('product-images')
+        .getPublicUrl(filePath);
+
+    if (!data.publicUrl) {
+         const error = { message: 'Could not get public URL for uploaded image.' };
+         console.error(error.message);
+         return { publicUrl: null, error };
+    }
+
+    return { publicUrl: data.publicUrl, error: null };
 };
